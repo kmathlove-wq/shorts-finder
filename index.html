@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>쇼핑쇼츠찾기</title>
+<!-- 파비콘: 빨간 쇼핑백 + 재생 버튼 (파일 안에 그림을 직접 넣어 html 하나로도 보이게) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ff3d57'/%3E%3Cpath d='M23 22v-3a9 9 0 0 1 18 0v3' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M14 22h36l-3 30H17z' fill='%23fff'/%3E%3Cpath d='M28 30l11 7-11 7z' fill='%23ff3d57'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ff3d57">
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --ink:#1d1f27; --sub:#6b7080; --accent:#ff3d57; --soft:#fff0f2;
+          --line:#e3e5ee; --ok:#12a150; }
+  * { box-sizing: border-box; }
+  [hidden] { display:none !important; }   /* 숨긴 건 꼭 숨기기 (다른 디자인 설정이 덮어쓰지 않게) */
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family: "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:var(--card);
+           border-bottom:1px solid var(--line); padding:14px 16px 0; }
+  .wrap { max-width:1100px; margin:0 auto; }
+  h1 { margin:0 0 10px; font-size:22px; }
+  h2 { font-size:18px; margin:22px 0 10px; }
+  .tabs { display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tabs button { background:none; padding:10px 14px; border-radius:10px 10px 0 0; color:var(--sub);
+                 font-weight:700; white-space:nowrap; border-bottom:3px solid transparent; }
+  .tabs button.on { color:var(--accent); border-bottom-color:var(--accent); }
+  section { padding:16px; }
+  form.bar { display:flex; gap:8px; }
+  input[type=text], input[type=url], input[type=number], textarea, select {
+    font:inherit; padding:10px 12px; border:2px solid var(--line); border-radius:10px; background:#fff; width:100%; }
+  input:focus, textarea:focus, select:focus { outline:none; border-color:var(--accent); }
+  button { font:inherit; cursor:pointer; border:none; border-radius:10px; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .go { background:var(--accent); color:#fff; font-weight:700; padding:10px 20px; white-space:nowrap; }
+  .dark { background:var(--ink); color:#fff; padding:10px 18px; }
+  .ghost { background:var(--soft); color:var(--accent); padding:6px 12px; font-size:14px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+  .opts { display:flex; flex-wrap:wrap; gap:16px; font-size:14px; color:var(--sub); align-items:center; margin-top:8px; }
+  .left { margin-left:auto; font-weight:700; color:var(--ink); }
+  .status { padding:10px 0 0; color:var(--sub); }
+  .status.err { color:var(--accent); font-weight:700; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:14px; padding:14px 0; }
+  .card { background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px #0001; position:relative; }
+  .card:hover { box-shadow:0 4px 14px #0002; }
+  .card > a { display:block; color:inherit; text-decoration:none; position:relative; }
+  .card img { width:100%; aspect-ratio:9/16; object-fit:cover; display:block; background:#ddd; }
+  .card.wide img { aspect-ratio:16/9; }
+  .rank, .len { position:absolute; top:8px; background:#000b; color:#fff; padding:2px 7px; border-radius:6px; font-size:12px; }
+  .rank { left:8px; font-weight:700; } .len { right:8px; }
+  .info { padding:8px 10px 10px; }
+  .views { color:var(--accent); font-weight:800; font-size:16px; }
+  .title { font-size:13px; margin:4px 0; line-height:1.35; display:-webkit-box;
+           -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .meta { font-size:12px; color:var(--sub); }
+  .actions { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .actions button { flex:1; font-size:13px; padding:6px 4px; }
+  .desc { white-space:pre-wrap; font-size:12px; background:#f3f4f8; border-radius:8px; padding:8px;
+          margin-top:8px; max-height:220px; overflow:auto; }
+  .more { display:block; margin:0 auto 24px; }
+  .empty { text-align:center; color:var(--sub); padding:40px 0; }
+  .panel { background:var(--card); border-radius:14px; padding:16px; box-shadow:0 1px 3px #0001; margin-bottom:14px; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; }
+  label.f { display:block; font-size:13px; color:var(--sub); }
+  label.f > input, label.f > textarea, label.f > select { margin-top:4px; }
+  .note-head { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:10px; }
+  .note-head b { font-size:17px; }
+  .shops { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
+  .shops a { font-size:13px; padding:6px 10px; border-radius:8px; background:#eef1f8; color:var(--ink); text-decoration:none; }
+  .tip { font-size:13px; color:var(--sub); background:#fffbe6; border:1px solid #f5e3a3; border-radius:10px; padding:10px 12px; }
+  .maker { display:grid; grid-template-columns: 1fr 300px; gap:16px; align-items:start; }
+  .clip { display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center;
+          border-top:1px solid var(--line); padding:10px 0; }
+  .clip img, .clip video { width:64px; height:96px; object-fit:cover; border-radius:6px; background:#000; }
+  .clip .ctl { display:flex; flex-direction:column; gap:4px; }
+  .clip .ctl button { padding:4px 8px; font-size:12px; background:#eef1f8; }
+  .clip .sec { width:80px; }
+  canvas#preview { width:100%; aspect-ratio:9/16; background:#000; border-radius:12px; display:block; }
+  progress { width:100%; height:14px; margin-top:10px; }
+  .check label { display:flex; gap:8px; padding:6px 0; align-items:flex-start; }
+  .copy { display:flex; gap:8px; align-items:flex-start; margin-bottom:10px; }
+  .copy textarea { flex:1; min-height:44px; }
+  dialog { border:none; border-radius:16px; padding:20px; width:min(420px, 92vw); }
+  dialog::backdrop { background:#0006; }
+  input, textarea, select { font-size:16px !important; }   /* 아이폰: 16px보다 작으면 누를 때 화면이 확대됨 */
+  .keybtn { float:right; font-size:13px; }
+  /* 비밀번호 잠금 화면 */
+  body.locked > header, body.locked > main { display:none; }
+  #lock { position:fixed; inset:0; display:none; place-items:center; background:var(--bg); z-index:10; }
+  body.locked #lock { display:grid; }
+  #lock .box { text-align:center; padding:24px; }
+  #pin { width:190px; font-size:36px !important; letter-spacing:18px; text-align:center; margin-top:14px; }
+  #pinMsg { min-height:24px; margin-top:10px; color:var(--accent); font-weight:700; }
+  .shake { animation:shake .35s; }
+  @keyframes shake { 25% { transform:translateX(-10px); } 75% { transform:translateX(10px); } }
+  @media (max-width:760px) {
+    .maker { grid-template-columns:1fr; } .left { margin-left:0; }
+    .maker > .panel { position:static !important; }
+    header { padding:10px 12px 0; } h1 { font-size:18px; margin-bottom:6px; }
+    section { padding:12px; }
+    .grid { grid-template-columns:repeat(2, 1fr); gap:10px; }
+    .tabs button { padding:8px 10px; font-size:14px; }
+    form.bar .go { padding:10px 14px; }
+    canvas#preview { max-width:300px; margin:0 auto; }
+  }
+</style>
+</head>
+<body>
+<!-- 비밀번호 잠금 화면 (인터넷 주소로 열었을 때만) -->
+<div id="lock"><div class="box">
+  <div style="font-size:56px">🔐</div>
+  <h2 style="margin:8px 0 0">비밀번호 4자리</h2>
+  <input type="password" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+  <div id="pinMsg"></div>
+</div></div>
+<header><div class="wrap">
+  <h1>🛍️ 쇼핑쇼츠찾기 <button class="ghost keybtn" id="keyBtn" hidden>🔑 API 키</button></h1>
+  <nav class="tabs" id="tabs">
+    <button data-tab="hot">🔥 인기 쇼핑쇼츠</button>
+    <button data-tab="celeb">⭐ 연예인 추천템</button>
+    <button data-tab="notes">📝 내 노트 <span id="noteCount"></span></button>
+    <button data-tab="make">🎬 영상 만들기</button>
+    <button data-tab="upload">📤 올리기</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <!-- ── 인기 쇼핑쇼츠 ── -->
+  <section id="tab-hot" hidden>
+    <form class="bar" id="hot-form">
+      <input type="text" id="hot-q" placeholder="찾고 싶은 물건이나 단어 (예: 무선 선풍기)">
+      <button class="go">🔍 검색</button>
+    </form>
+    <div class="chips" id="hot-chips"></div>
+    <div class="opts">
+      <span>조회수:
+        <label><input type="radio" name="hot-min" value="0"> 전체</label>
+        <label><input type="radio" name="hot-min" value="1000000" checked> 100만 이상</label>
+      </span>
+      <span>길이:
+        <label><input type="radio" name="hot-len" value="180" checked> 3분 이하</label>
+        <label><input type="radio" name="hot-len" value="60"> 1분 이하</label>
+      </span>
+      <span class="left">오늘 남은 검색: 약 <span class="leftNum">?</span>번</span>
+    </div>
+    <div class="status" id="hot-status">검색어를 쓰거나 추천 버튼을 눌러 보세요!</div>
+    <div class="grid" id="hot-grid"></div>
+    <button class="dark more" id="hot-more" hidden>⬇ 더 보기 (검색 1번 사용)</button>
+  </section>
+
+  <!-- ── 조각 1: 연예인 추천템 조사 ── -->
+  <section id="tab-celeb" hidden>
+    <form class="bar" id="celeb-form">
+      <input type="text" id="celeb-q" placeholder="연예인 이름 (예: 아이유)">
+      <button class="go">⭐ 추천템 찾기</button>
+    </form>
+    <div class="chips" id="celeb-chips"></div>
+    <div class="opts">
+      <span>조회수:
+        <label><input type="radio" name="celeb-min" value="0"> 전체</label>
+        <label><input type="radio" name="celeb-min" value="100000" checked> 10만 이상</label>
+        <label><input type="radio" name="celeb-min" value="1000000"> 100만 이상</label>
+      </span>
+      <label><input type="checkbox" id="celeb-only" checked> 추천템 영상만</label>
+      <span>길이:
+        <label><input type="radio" name="celeb-len" value="99999" checked> 전체</label>
+        <label><input type="radio" name="celeb-len" value="180"> 3분 이하</label>
+      </span>
+      <span class="left">오늘 남은 검색: 약 <span class="leftNum">?</span>번</span>
+    </div>
+    <div class="status" id="celeb-status">이름을 쓰면 추천템·애장품 영상을 찾아 조회수 순으로 보여줘요. 영상은 <b>조사용</b>으로만 보고, 물건 이름을 노트에 담으세요!</div>
+    <div class="grid" id="celeb-grid"></div>
+    <button class="dark more" id="celeb-more" hidden>⬇ 더 보기 (검색 1번 사용)</button>
+  </section>
+
+  <!-- ── 조각 2: 내 노트 + 물건 정보 찾기 ── -->
+  <section id="tab-notes" hidden>
+    <div class="opts" style="margin:0 0 12px">
+      <button class="dark" id="notes-export">⬇ 노트 내려받기 (엑셀)</button>
+      <label class="ghost" style="cursor:pointer">⬆ 노트 불러오기
+        <input type="file" id="notes-import" accept=".csv" hidden></label>
+      <button class="ghost" id="notes-add">＋ 직접 추가</button>
+    </div>
+    <div id="notes-list"></div>
+  </section>
+
+  <!-- ── 조각 3: 영상 만들기 ── -->
+  <section id="tab-make" hidden>
+    <div class="tip">📸 <b>내가 직접 찍은 사진·영상만</b> 넣어요. 연예인 사진이나 남의 영상을 넣으면 저작권·초상권에 걸려요.
+      음악은 <a href="https://studio.youtube.com/channel/UC/music" target="_blank">유튜브 오디오 보관함</a>의 무료 음악을 내려받아 쓰면 안전해요.</div>
+    <div class="maker" style="margin-top:14px">
+      <div>
+        <div class="panel">
+          <div class="row">
+            <label class="f">노트에서 상품 고르기
+              <select id="mk-note"><option value="">(선택 안 함)</option></select></label>
+            <label class="f">위쪽 큰 글씨 (제목)
+              <input type="text" id="mk-title" placeholder="예: 이거 사고 삶이 바뀜"></label>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="note-head"><b>🎞️ 사진·영상 (순서대로 이어져요)</b>
+            <label class="go" style="cursor:pointer">＋ 추가
+              <input type="file" id="mk-files" accept="image/*,video/*" multiple hidden></label></div>
+          <div id="mk-clips"><div class="empty">사진이나 영상을 추가해 주세요</div></div>
+          <div class="meta" id="mk-total"></div>
+        </div>
+        <div class="panel">
+          <b>🎵 소리</b>
+          <div class="row" style="margin-top:8px">
+            <label class="f">배경 음악 (선택)
+              <input type="file" id="mk-music" accept="audio/*"></label>
+            <label class="f">음악 크기
+              <input type="range" id="mk-vol" min="0" max="1" step="0.05" value="0.5"></label>
+          </div>
+          <label style="font-size:14px"><input type="checkbox" id="mk-clipSound"> 내 영상 속 소리도 넣기</label>
+        </div>
+      </div>
+      <div class="panel" style="position:sticky; top:120px">
+        <canvas id="preview" width="1080" height="1920"></canvas>
+        <button class="go" id="mk-render" style="width:100%; margin-top:10px">🎬 쇼츠 만들기</button>
+        <progress id="mk-progress" value="0" max="1" hidden></progress>
+        <div class="meta" id="mk-status" style="margin-top:6px">만드는 동안 이 화면을 켜 두세요 (다른 창으로 가거나 화면이 꺼지면 멈춰요)</div>
+        <div id="mk-result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 조각 4: 올리기 ── -->
+  <section id="tab-upload" hidden>
+    <div class="panel">
+      <label class="f">어떤 상품 영상인가요?
+        <select id="up-note"><option value="">(노트에서 고르기)</option></select></label>
+      <label style="font-size:14px; display:block; margin-top:8px">
+        <input type="checkbox" id="up-celeb"> 설명에 연예인 이름 넣기 ("○○ 추천템으로 알려진" 처럼 사실만)</label>
+    </div>
+    <div class="panel">
+      <b>✍️ 복사해서 붙여넣기</b>
+      <div class="copy" style="margin-top:10px"><textarea id="up-title" rows="2"></textarea><button class="ghost" data-copy="up-title">복사</button></div>
+      <div class="copy"><textarea id="up-desc" rows="9"></textarea><button class="ghost" data-copy="up-desc">복사</button></div>
+      <div class="meta">제목은 100자까지예요. 고쳐 써도 돼요!</div>
+    </div>
+    <div class="panel check" id="up-check">
+      <b>✅ 올리기 전 확인 (다 체크해야 버튼이 켜져요)</b>
+      <label><input type="checkbox"> 영상 속 사진·영상은 <b>내가 직접 찍은 것</b>만 있어요</label>
+      <label><input type="checkbox"> <b>연예인 사진·영상·목소리</b>가 들어 있지 않아요</label>
+      <label><input type="checkbox"> 음악은 <b>유튜브 오디오 보관함 같은 무료 음악</b>이거나 음악이 없어요</label>
+      <label><input type="checkbox"> 판매 링크(쿠팡 파트너스 등)가 있으면 업로드할 때 <b>"유료 프로모션 포함"</b>을 체크할 거예요</label>
+      <label><input type="checkbox"> <b>부모님과 함께</b> 부모님 채널에 올려요</label>
+      <button class="go" id="up-open" disabled style="margin-top:8px">📤 유튜브 스튜디오 열기</button>
+    </div>
+    <div class="panel">
+      <b>📱 올리는 순서</b>
+      <ol style="line-height:1.8; margin:8px 0 0">
+        <li>유튜브 스튜디오에서 <b>만들기 → 동영상 업로드</b> (휴대폰은 유튜브 앱 ＋ 버튼)</li>
+        <li>🎬 탭에서 만든 영상 파일 고르기 → 세로 + 3분 이하라서 <b>자동으로 쇼츠</b>가 돼요</li>
+        <li>위에서 복사한 <b>제목·설명</b> 붙여넣기</li>
+        <li>"자세히 보기"에서 <b>유료 프로모션</b> 체크 (판매 링크가 있을 때)</li>
+        <li>처음엔 <b>비공개</b>로 올려서 확인한 뒤 공개로 바꾸면 안전해요</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<!-- 키 입력 창 (인터넷 주소로 열었을 때, 폰마다 처음 한 번) -->
+<dialog id="keyDlg">
+  <form method="dialog" id="keyForm">
+    <h2 style="margin-top:0">🔑 유튜브 API 키 넣기</h2>
+    <p class="meta" style="line-height:1.6"><b>AIza로 시작하는 긴 글자</b>예요 (비밀번호 4자리와는 달라요). 처음 한 번만 넣으면 돼요. 키는 <b>이 기기 안에만</b> 저장되고, 다른 사람에게는 보이지 않아요.<br>
+      (카카오톡 "나와의 채팅"에 키를 보내 두면 복사하기 쉬워요)</p>
+    <input type="text" id="keyInput" placeholder="AIza로 시작하는 키" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="status" id="keyMsg"></div>
+    <div class="actions" style="margin-top:14px">
+      <button type="button" class="ghost" id="keyCancel">나중에</button>
+      <button class="go">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 노트에 담기 창 -->
+<dialog id="noteDlg">
+  <form method="dialog" id="noteForm">
+    <h2 style="margin-top:0">📝 노트에 담기</h2>
+    <div class="meta" id="nd-src" style="margin-bottom:10px"></div>
+    <label class="f">상품 이름 *<input type="text" id="nd-product" required placeholder="예: ○○ 립밤"></label><br>
+    <label class="f">연예인<input type="text" id="nd-celeb"></label><br>
+    <label class="f">메모<textarea id="nd-memo" rows="3" placeholder="예: 영상 2분쯤, 파우치에서 꺼냄"></textarea></label>
+    <div class="actions" style="margin-top:14px">
+      <button type="button" class="ghost" id="nd-cancel">취소</button>
+      <button class="go">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// 키가 들어 있으면 "파일 하나" 모드: 브라우저가 유튜브에 직접 물어본다 (build_single.py가 채움)
+const KEY = "";
+
+const HOT_KEYWORDS = ["다이소 꿀템", "쿠팡 추천템", "알리 꿀템", "살림템", "자취템",
+                      "주방 꿀템", "신박한 아이템", "생활용품 추천", "올리브영 추천", "문구 꿀템"];
+const CELEBS = [];   // 자주 찾는 연예인 이름을 넣으면 버튼이 생겨요. 예: ["아이유", "유재석"]
+
+const $ = id => document.getElementById(id);
+const store = {   // 브라우저 저장 공간 — 막혀 있어도 프로그램은 돌아가게
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+// 세 가지 모드: ① 파일 하나(KEY 들어 있음) ② 파이썬 서버(127.0.0.1:8765) ③ 인터넷 주소(기기마다 키를 한 번 입력)
+const SERVER_MODE = !KEY && location.hostname === "127.0.0.1" && location.port === "8765";
+let apiKey = KEY || store.get("sf-key", "");
+
+function el(tag, props = {}, ...kids) {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...kids);
+  return e;
+}
+
+// ══ 유튜브 검색 (파이썬 서버 또는 직접) ══════════════════════════
+const DAILY_QUOTA = 10000, SEARCH_COST = 101;
+function quotaDay() { return new Date(Date.now() - 8 * 3600e3).toISOString().slice(0, 10); }
+function loadCache() {
+  const d = store.get("sf-cache", null);
+  return d && d.day === quotaDay() ? d : { day: quotaDay(), used: 0, results: {} };
+}
+function searchesLeft(d) { return Math.max(0, Math.floor((DAILY_QUOTA - d.used) / SEARCH_COST)); }
+function showLeft(n) { document.querySelectorAll(".leftNum").forEach(s => s.textContent = n); }
+
+// 유튜브 길이 표기 'PT1M5S' → 65초
+function toSeconds(iso) {
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || "");
+  if (!m) return 0;
+  const [d, h, mi, s] = m.slice(1).map(x => +(x || 0));
+  return d * 86400 + h * 3600 + mi * 60 + s;
+}
+
+async function callApi(endpoint, params) {
+  const url = "https://www.googleapis.com/youtube/v3/" + endpoint + "?" +
+              new URLSearchParams({ ...params, key: apiKey });
+  let res;
+  try { res = await fetch(url); } catch (e) { throw new Error("인터넷 연결을 확인해 주세요."); }
+  const data = await res.json();
+  if (!res.ok) {
+    const reason = data.error?.errors?.[0]?.reason || res.status;
+    if (reason === "quotaExceeded" || reason === "dailyLimitExceeded")
+      throw new Error("오늘 쓸 수 있는 검색을 다 썼어요. 한국 시간 오후 4~5시쯤 다시 채워져요! (돈은 안 나가요)");
+    if (/API key/i.test(data.error?.message || "") || reason === "keyInvalid")
+      throw new Error("유튜브 API 키가 틀린 것 같아요. 위쪽 🔑 API 키 버튼을 눌러 다시 넣어 주세요. (비밀번호와는 다른 거예요)");
+    throw new Error(`유튜브가 거절했어요 (이유: ${reason}).`);
+  }
+  return data;
+}
+
+async function searchDirect(q, pageToken, dur, order) {
+  if (!apiKey) { $("keyDlg").showModal(); throw new Error("먼저 🔑 유튜브 API 키(AIza로 시작하는 긴 글자)를 넣어 주세요."); }
+  const cache = loadCache(), cacheKey = `${q}|${pageToken}|${dur}|${order}`;
+  if (cache.results[cacheKey]) return { ...cache.results[cacheKey], cached: true, left: searchesLeft(cache) };
+
+  const found = await callApi("search", {
+    part: "id", type: "video", q, order, videoDuration: dur,
+    regionCode: "KR", relevanceLanguage: "ko", maxResults: 50, pageToken,
+  });
+  const ids = found.items.map(it => it.id.videoId).filter(Boolean);
+  let videos = [];
+  if (ids.length) {
+    const info = await callApi("videos", { part: "snippet,statistics,contentDetails", id: ids.join(",") });
+    videos = info.items.map(v => ({
+      id: v.id, title: v.snippet.title, channel: v.snippet.channelTitle,
+      published: v.snippet.publishedAt.slice(0, 10),
+      views: +(v.statistics.viewCount || 0), seconds: toSeconds(v.contentDetails.duration),
+      description: (v.snippet.description || "").slice(0, 1500),
+    }));
+  }
+  const result = { videos, next: found.nextPageToken || "" };
+  cache.used += SEARCH_COST;
+  cache.results[cacheKey] = result;
+  store.set("sf-cache", cache);
+  return { ...result, cached: false, left: searchesLeft(cache) };
+}
+
+async function searchServer(q, pageToken, dur, order) {
+  let res;
+  try { res = await fetch(`/api/search?q=${encodeURIComponent(q)}&page=${encodeURIComponent(pageToken)}&dur=${dur}&order=${order}`); }
+  catch (e) { throw new Error("프로그램(검은 창)이 꺼져 있는 것 같아요. 실행.bat을 다시 켜 주세요."); }
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+const search = (q, page, dur, order) => (SERVER_MODE ? searchServer : searchDirect)(q, page, dur, order);
+
+// 조회수를 한국식으로: 12,345,678 → "1234만회"
+function fmtViews(n) {
+  if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, "") + "억회";
+  if (n >= 1e4) return Math.floor(n / 1e4).toLocaleString() + "만회";
+  return n.toLocaleString() + "회";
+}
+function fmtLen(s) {
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
+// ══ 검색 탭 만들기 — 🔥 탭과 ⭐ 탭이 같은 틀을 나눠 씀 ════════════
+function makeSearchTab(p) {   // p = { id, dur, order, toQuery, keywords, withNotes, only }
+  let query = "", label = "", nextPage = "", videos = [];
+  const status = (msg, err) => { $(p.id + "-status").textContent = msg; $(p.id + "-status").className = "status" + (err ? " err" : ""); };
+
+  function card(v, i) {
+    const a = el("a", { href: "https://www.youtube.com/watch?v=" + v.id, target: "_blank" },
+      el("img", { loading: "lazy", alt: "", src: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg` }),
+      el("span", { className: "rank", textContent: (i + 1) + "위" }),
+      el("span", { className: "len", textContent: fmtLen(v.seconds) }));
+    const info = el("div", { className: "info" },
+      el("div", { className: "views", textContent: fmtViews(v.views) }),
+      el("div", { className: "title", textContent: v.title }),          // textContent = 특수문자 안전
+      el("div", { className: "meta", textContent: v.channel + " · " + v.published }));
+    if (p.withNotes) {
+      const desc = el("div", { className: "desc", hidden: true, textContent: v.description || "(설명이 없어요)" });
+      info.append(el("div", { className: "actions" },
+        el("button", { className: "ghost", textContent: "📄 설명", onclick: () => desc.hidden = !desc.hidden }),
+        el("button", { className: "ghost", textContent: "📝 담기", onclick: () => openNoteDlg(v, label) })), desc);
+    }
+    return el("div", { className: "card" + (v.seconds > 180 ? " wide" : "") }, a, info);
+  }
+
+  function render() {
+    const maxLen = +document.querySelector(`input[name=${p.id}-len]:checked`).value;
+    const minViews = +document.querySelector(`input[name=${p.id}-min]:checked`).value;
+    const onlyOn = p.only && $(p.id + "-only").checked;
+    const shown = videos.filter(v => v.seconds > 0 && v.seconds <= maxLen && v.views >= minViews)
+                        .filter(v => !onlyOn || p.only(v))
+                        .sort((a, b) => b.views - a.views);
+    $(p.id + "-grid").replaceChildren(...shown.map(card));
+    if (query) status(`"${label}" — 받아 온 ${videos.length}개 중 ${shown.length}개가 조건에 맞아요.`);
+  }
+
+  async function run(text, more) {
+    if (!more) { label = text; query = p.toQuery(text); nextPage = ""; videos = []; $(p.id + "-grid").replaceChildren(); }
+    status("찾는 중이에요… 🔎");
+    $(p.id + "-more").hidden = true;
+    try {
+      const data = await search(query, nextPage, p.dur, p.order);
+      const seen = new Set(videos.map(v => v.id));
+      videos.push(...data.videos.filter(v => !seen.has(v.id)));
+      nextPage = data.next;
+      showLeft(data.left);
+      render();
+      if (data.cached) $(p.id + "-status").textContent += " (저장해 둔 결과라 사용량이 줄지 않았어요 💾)";
+      $(p.id + "-more").hidden = !nextPage;
+    } catch (e) { status(e.message, true); }
+  }
+
+  $(p.id + "-form").onsubmit = e => { e.preventDefault(); const t = $(p.id + "-q").value.trim(); if (t) run(t); };
+  $(p.id + "-more").onclick = () => run(label, true);
+  document.querySelectorAll(`input[name=${p.id}-len], input[name=${p.id}-min], #${p.id}-only`).forEach(r => r.onchange = render);
+  $(p.id + "-chips").replaceChildren(...p.keywords.map(k =>
+    el("button", { className: "ghost", textContent: k, onclick: () => { $(p.id + "-q").value = k; run(k); } })));
+}
+
+makeSearchTab({ id: "hot", dur: "short", order: "viewCount", toQuery: t => t, keywords: HOT_KEYWORDS });
+// 연예인은 관련도순으로 받아 와서 화면에서 조회수순으로 다시 줄 세움 (조회수순으로 받으면 엉뚱한 영상이 많음)
+makeSearchTab({ id: "celeb", dur: "any", order: "relevance", keywords: CELEBS, withNotes: true,
+                toQuery: name => `${name} 추천템 애장품`,
+                // 제목·설명에 이런 말이 있어야 "추천템 영상"으로 봄 (노래·무대 영상 걸러내기)
+                only: v => /추천|애장|템|내돈내산|인마이백|왓츠인|하울|쇼핑|구매|제품|브랜드|화장품|뷰티|파우치|가방|쓰는|사용/.test(v.title + " " + v.description) });
+
+// ══ 조각 2: 내 노트 ═══════════════════════════════════════════
+let notes = store.get("sf-notes", []);
+let dlgSource = null;
+const saveNotes = () => { store.set("sf-notes", notes); renderNotes(); fillNoteSelects(); };
+
+function openNoteDlg(video, celeb) {
+  dlgSource = video;
+  $("nd-src").textContent = video ? "📺 " + video.title : "직접 추가";
+  $("nd-product").value = ""; $("nd-celeb").value = celeb || ""; $("nd-memo").value = "";
+  $("noteDlg").showModal();
+}
+$("nd-cancel").onclick = () => $("noteDlg").close();
+$("noteForm").onsubmit = () => {
+  notes.unshift({
+    id: Date.now().toString(36), product: $("nd-product").value.trim(), celeb: $("nd-celeb").value.trim(),
+    memo: $("nd-memo").value.trim(), price: "", link: "",
+    videoId: dlgSource?.id || "", videoTitle: dlgSource?.title || "", added: new Date().toISOString().slice(0, 10),
+  });
+  saveNotes();
+};
+$("notes-add").onclick = () => openNoteDlg(null, "");
+
+// 상품 이름으로 쇼핑몰 검색 링크 만들기 (API 키 필요 없음)
+const SHOPS = [
+  ["쿠팡", q => "https://www.coupang.com/np/search?q=" + q],
+  ["네이버쇼핑", q => "https://search.shopping.naver.com/search/all?query=" + q],
+  ["다이소몰", q => "https://www.daisomall.co.kr/ds/dst/SCR_DST_0015?searchTerm=" + q],
+  ["올리브영", q => "https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=" + q],
+  ["다나와 최저가", q => "https://search.danawa.com/dsearch.php?query=" + q],
+];
+
+function renderNotes() {
+  $("noteCount").textContent = notes.length ? `(${notes.length})` : "";
+  if (!notes.length) {
+    return $("notes-list").replaceChildren(el("div", { className: "empty",
+      textContent: "아직 비어 있어요. ⭐ 탭에서 영상을 보고 '📝 담기'를 눌러 보세요!" }));
+  }
+  $("notes-list").replaceChildren(...notes.map(n => {
+    const field = (key, lab, type = "text", ph = "") => {
+      const input = el("input", { type, value: n[key], placeholder: ph, onchange: () => { n[key] = input.value.trim(); saveNotes(); } });
+      return el("label", { className: "f", textContent: lab }, input);
+    };
+    const q = encodeURIComponent(n.product);
+    return el("div", { className: "panel" },
+      el("div", { className: "note-head" },
+        el("b", { textContent: n.product }),
+        el("div", { className: "actions", style: "margin:0" },
+          el("button", { className: "go", textContent: "🎬 영상 만들기", onclick: () => { $("mk-note").value = n.id; $("mk-note").onchange(); showTab("make"); } }),
+          el("button", { className: "ghost", textContent: "삭제", onclick: () => {
+            if (confirm(`"${n.product}"을(를) 노트에서 지울까요?`)) { notes = notes.filter(x => x !== n); saveNotes(); } } }))),
+      el("div", { className: "shops" }, el("span", { className: "meta", textContent: "🔎 어디서 팔까?" }),
+        ...SHOPS.map(([name, url]) => el("a", { href: url(q), target: "_blank", textContent: name }))),
+      el("div", { className: "row" },
+        field("product", "상품 이름"), field("celeb", "연예인"),
+        field("price", "가격", "text", "예: 12,900원"),
+        field("link", "내 판매 링크 (쿠팡 파트너스 등)", "url", "https://link.coupang.com/...")),
+      el("div", { className: "row", style: "margin-top:8px" }, field("memo", "메모")),
+      n.videoId ? el("div", { className: "meta", style: "margin-top:8px" }, "📺 참고 영상: ",
+        el("a", { href: "https://www.youtube.com/watch?v=" + n.videoId, target: "_blank", textContent: n.videoTitle })) : "");
+  }));
+}
+
+// 엑셀에서 한글이 안 깨지게 BOM(﻿)을 붙인 CSV
+const CSV_COLS = ["product", "celeb", "price", "link", "memo", "videoId", "videoTitle", "added"];
+const CSV_HEAD = ["상품", "연예인", "가격", "판매링크", "메모", "영상ID", "영상제목", "담은날"];
+$("notes-export").onclick = () => {
+  const esc = s => `"${String(s ?? "").replace(/"/g, '""')}"`;
+  const csv = "﻿" + [CSV_HEAD, ...notes.map(n => CSV_COLS.map(c => n[c]))].map(r => r.map(esc).join(",")).join("\r\n");
+  el("a", { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: `내노트-${quotaDay()}.csv` }).click();
+};
+function parseCsv(text) {
+  const rows = [[]]; let cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { rows.at(-1).push(cell); cell = ""; }
+    else if (c === "\n") { rows.at(-1).push(cell.replace(/\r$/, "")); cell = ""; rows.push([]); }
+    else cell += c;
+  }
+  rows.at(-1).push(cell);
+  return rows.filter(r => r.some(x => x.trim()));
+}
+$("notes-import").onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const rows = parseCsv((await file.text()).replace(/^﻿/, "")).slice(1);
+  const have = new Set(notes.map(n => n.product + "|" + n.videoId));
+  let added = 0;
+  for (const r of rows) {
+    const n = Object.fromEntries(CSV_COLS.map((c, i) => [c, r[i] || ""]));
+    if (!n.product || have.has(n.product + "|" + n.videoId)) continue;
+    notes.push({ id: Date.now().toString(36) + added, ...n }); added++;
+  }
+  saveNotes(); e.target.value = "";
+  alert(`${added}개를 불러왔어요! (이미 있던 건 건너뛰었어요)`);
+};
+
+function fillNoteSelects() {
+  for (const id of ["mk-note", "up-note"]) {
+    const s = $(id), keep = s.value;
+    s.replaceChildren(s.options[0], ...notes.map(n => el("option", { value: n.id, textContent: n.product + (n.celeb ? ` (${n.celeb})` : "") })));
+    s.value = notes.some(n => n.id === keep) ? keep : "";
+  }
+}
+const noteById = id => notes.find(n => n.id === id);
+
+// ══ 조각 3: 영상 만들기 (브라우저가 그림을 그리며 녹화) ═════════════
+const W = 1080, H = 1920, FPS = 30, MAX_SEC = 180;
+const ctx = $("preview").getContext("2d");
+let clips = [];   // { kind:"image"|"video", url, name, dur, caption }
+
+$("mk-note").onchange = () => {
+  const n = noteById($("mk-note").value);
+  if (n && !$("mk-title").dataset.edited) $("mk-title").value = n.product;
+  drawPreview();
+};
+$("mk-title").oninput = () => { $("mk-title").dataset.edited = "1"; drawPreview(); };
+
+$("mk-files").onchange = async e => {
+  for (const f of e.target.files) {
+    const kind = f.type.startsWith("video") ? "video" : "image";
+    const clip = { kind, url: URL.createObjectURL(f), name: f.name, dur: 3, caption: "" };
+    if (kind === "video") {
+      const v = el("video", { src: clip.url, muted: true, preload: "metadata" });
+      await new Promise(r => { v.onloadedmetadata = r; v.onerror = r; });
+      clip.max = v.duration || 5;
+      clip.dur = Math.min(Math.round(clip.max * 10) / 10, 15);
+    }
+    clips.push(clip);
+  }
+  e.target.value = "";
+  renderClips(); drawPreview();
+};
+
+function renderClips() {
+  const total = clips.reduce((s, c) => s + c.dur, 0);
+  $("mk-total").textContent = clips.length ? `전체 길이: ${total.toFixed(1)}초 ${total > MAX_SEC ? "⚠️ 쇼츠는 180초(3분)까지예요!" : "✅"}` : "";
+  if (!clips.length) return $("mk-clips").replaceChildren(el("div", { className: "empty", textContent: "사진이나 영상을 추가해 주세요" }));
+  $("mk-clips").replaceChildren(...clips.map((c, i) => {
+    const move = d => { const j = i + d; if (j < 0 || j >= clips.length) return; [clips[i], clips[j]] = [clips[j], clips[i]]; renderClips(); drawPreview(); };
+    const sec = el("input", { type: "number", className: "sec", min: 0.5, max: c.max || 30, step: 0.5, value: c.dur,
+      onchange: () => { c.dur = Math.max(0.5, Math.min(+sec.value || 3, c.max || 30)); renderClips(); } });
+    const cap = el("input", { type: "text", value: c.caption, placeholder: "아래쪽 자막 (예: 손잡이가 접혀요!)",
+      oninput: () => { c.caption = cap.value; drawPreview(i); } });
+    return el("div", { className: "clip" },
+      c.kind === "video" ? el("video", { src: c.url, muted: true }) : el("img", { src: c.url, alt: "" }),
+      el("div", {}, el("div", { className: "meta", textContent: `${i + 1}. ${c.kind === "video" ? "🎥" : "🖼️"} ${c.name}` }), cap,
+        el("div", { className: "meta", style: "margin-top:4px" }, "보여줄 시간(초) ", sec)),
+      el("div", { className: "ctl" },
+        el("button", { textContent: "▲", onclick: () => move(-1) }),
+        el("button", { textContent: "▼", onclick: () => move(1) }),
+        el("button", { textContent: "✕", onclick: () => { clips.splice(i, 1); renderClips(); drawPreview(); } })));
+  }));
+}
+
+// 가로 사진도 꽉 차 보이게: 뒤에는 흐리게 크게, 앞에는 잘리지 않게
+function drawMedia(src, sw, sh, zoom = 1) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  if (!sw || !sh) return;
+  const cover = Math.max(W / sw, H / sh), contain = Math.min(W / sw, H / sh) * zoom;
+  ctx.save(); ctx.filter = "blur(40px) brightness(0.6)";
+  ctx.drawImage(src, (W - sw * cover) / 2, (H - sh * cover) / 2, sw * cover, sh * cover);
+  ctx.restore();
+  ctx.drawImage(src, (W - sw * contain) / 2, (H - sh * contain) / 2, sw * contain, sh * contain);
+}
+
+// 한국어는 띄어쓰기가 없어도 줄바꿈되게 한 글자씩 재기
+function wrap(text, maxW) {
+  const lines = [];
+  for (const para of text.split("\n")) {
+    let line = "";
+    for (const ch of para) {
+      if (ctx.measureText(line + ch).width > maxW && line) { lines.push(line); line = ch.trimStart(); }
+      else line += ch;
+    }
+    lines.push(line);
+  }
+  return lines.slice(0, 3);
+}
+function drawText(text, y, size, boxed) {
+  if (!text) return;
+  ctx.font = `900 ${size}px "Pretendard","Malgun Gothic",sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  const lines = wrap(text, W - 140), lh = size * 1.25;
+  lines.forEach((ln, i) => {
+    const ly = y + (i - (lines.length - 1) / 2) * lh;
+    if (boxed) {
+      const w = ctx.measureText(ln).width + 50;
+      ctx.fillStyle = "#000c"; ctx.beginPath(); ctx.roundRect(W / 2 - w / 2, ly - lh / 2, w, lh, 18); ctx.fill();
+      ctx.fillStyle = "#fff";
+    } else {
+      ctx.strokeStyle = "#000"; ctx.lineWidth = size / 5; ctx.strokeText(ln, W / 2, ly);
+      ctx.fillStyle = "#ffe14d";
+    }
+    ctx.fillText(ln, W / 2, ly);
+  });
+}
+function drawOverlay(caption) {
+  drawText($("mk-title").value.trim(), 260, 96, false);
+  drawText(caption, 1560, 64, true);
+}
+
+// 멈춘 미리보기: i번째 조각의 첫 장면 + 글씨
+async function drawPreview(i = 0) {
+  const c = clips[i];
+  if (!c) { ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H); drawOverlay("사진·영상을 추가하면 여기 보여요"); return; }
+  const media = await loadMedia(c, true);
+  const sw = media.videoWidth || media.naturalWidth, sh = media.videoHeight || media.naturalHeight;
+  drawMedia(media, sw, sh);
+  drawOverlay(c.caption);
+}
+
+function loadMedia(c, preview) {
+  return new Promise(resolve => {
+    if (c.kind === "image") {
+      const img = new Image(); img.onload = () => resolve(img); img.onerror = () => resolve(img); img.src = c.url;
+    } else {
+      const v = el("video", { src: c.url, muted: preview || !$("mk-clipSound").checked, playsInline: true, preload: "auto" });
+      v.oncanplay = () => { v.oncanplay = null; resolve(v); };
+      v.onerror = () => resolve(v);
+      setTimeout(() => resolve(v), 3000);   // 아이폰은 재생 전엔 잘 안 불러와요 → 3초 뒤엔 그냥 진행
+      if (preview) v.currentTime = 0.1;
+      else v.play().then(() => v.pause()).catch(() => {});   // 버튼 누른 순간에 "재생 허락" 받아 두기
+    }
+  });
+}
+
+// 녹화할 수 있는 영상 형식 고르기 — mp4가 되면 mp4, 아니면 webm (유튜브는 둘 다 받아요)
+function pickFormat() {
+  const list = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"];
+  const mime = list.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  return mime && { mime, ext: mime.startsWith("video/mp4") ? "mp4" : "webm" };
+}
+const nextFrame = () => new Promise(r => setTimeout(r, 1000 / FPS));
+
+$("mk-render").onclick = async () => {
+  const total = clips.reduce((s, c) => s + c.dur, 0);
+  if (!clips.length) return alert("사진이나 영상을 먼저 추가해 주세요!");
+  if (total > MAX_SEC) return alert("쇼츠는 3분(180초)까지예요. 보여줄 시간을 줄여 주세요.");
+  const fmt = pickFormat();
+  if (!fmt) return alert("이 브라우저는 영상 만들기를 못 해요. 크롬이나 엣지로 열어 주세요.");
+
+  $("mk-render").disabled = true; $("mk-progress").hidden = false; $("mk-result").replaceChildren();
+  const status = t => $("mk-status").textContent = t;
+  status("준비 중…");
+
+  // 소리 섞기: 배경 음악 + (선택) 내 영상 소리 → 하나로 모아 녹화에 넣기
+  // 아이폰은 "버튼을 누른 그 순간"에만 소리를 허락해요 → 기다리기(await) 전에 전부 준비
+  const ac = new (window.AudioContext || window.webkitAudioContext)(), mix = ac.createMediaStreamDestination();
+  ac.resume();
+  let music = null, musicGain = null;
+  if ($("mk-music").files[0]) {
+    music = el("audio", { src: URL.createObjectURL($("mk-music").files[0]), loop: true, playsInline: true });
+    music.play().then(() => music.pause()).catch(() => {});
+    musicGain = ac.createGain(); musicGain.gain.value = +$("mk-vol").value;
+    ac.createMediaElementSource(music).connect(musicGain).connect(mix);
+  }
+  const media = await Promise.all(clips.map(c => loadMedia(c, false)));
+  clips.forEach((c, i) => { if (c.kind === "video" && $("mk-clipSound").checked) ac.createMediaElementSource(media[i]).connect(mix); });
+
+  const stream = new MediaStream([...$("preview").captureStream(FPS).getVideoTracks(), ...mix.stream.getAudioTracks()]);
+  const rec = new MediaRecorder(stream, { mimeType: fmt.mime, videoBitsPerSecond: 8e6 });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => rec.onstop = r);
+
+  await ac.resume();
+  rec.start(1000);
+  if (music) { music.currentTime = 0; music.play().catch(() => {}); }
+  const t0 = performance.now();
+  try {
+    for (let i = 0; i < clips.length; i++) {
+      const c = clips[i], m = media[i];
+      const sw = m.videoWidth || m.naturalWidth, sh = m.videoHeight || m.naturalHeight;
+      if (c.kind === "video") { m.currentTime = 0; await m.play().catch(() => {}); }
+      const start = performance.now();
+      while (true) {
+        const t = (performance.now() - start) / 1000;
+        if (t >= c.dur || (c.kind === "video" && m.ended)) break;
+        drawMedia(m, sw, sh, c.kind === "image" ? 1 + 0.06 * (t / c.dur) : 1);   // 사진은 천천히 확대
+        drawOverlay(c.caption);
+        const all = (performance.now() - t0) / 1000;
+        $("mk-progress").value = all / total;
+        status(`만드는 중… ${Math.floor(all)}초 / ${Math.ceil(total)}초 (이 창을 보고 있어 주세요)`);
+        // 마지막 1초는 음악을 천천히 줄이기
+        if (musicGain && total - all < 1) musicGain.gain.value = +$("mk-vol").value * Math.max(0, total - all);
+        await nextFrame();
+      }
+      if (c.kind === "video") m.pause();
+    }
+  } finally {
+    rec.stop(); await done;
+    if (music) music.pause();
+    ac.close();
+  }
+
+  const blob = new Blob(chunks, { type: fmt.mime.split(";")[0] });
+  const name = `쇼츠-${($("mk-title").value.trim() || "내영상").replace(/[\\/:*?"<>|]/g, "")}.${fmt.ext}`;
+  $("mk-result").replaceChildren(
+    el("video", { src: URL.createObjectURL(blob), controls: true, style: "width:100%; margin-top:10px; border-radius:10px" }),
+    el("a", { className: "go", href: URL.createObjectURL(blob), download: name, textContent: `⬇ ${name} 저장하기`,
+              style: "display:block; text-align:center; margin-top:8px; text-decoration:none" }));
+  status(`✅ 완성! (${(blob.size / 1048576).toFixed(1)}MB) 저장한 뒤 📤 탭으로 가세요.`);
+  $("mk-progress").hidden = true; $("mk-render").disabled = false;
+};
+
+// ══ 조각 4: 올리기 도우미 ═════════════════════════════════════
+// 받침이 있으면 "과", 없으면 "와" (아이유와 / 송중기와 / 차은우와 / 박보검과)
+function josa(word) {
+  const c = word.charCodeAt(word.length - 1) - 0xAC00;
+  return c >= 0 && c < 11172 && c % 28 ? "과" : "와";
+}
+function makeUploadText() {
+  const n = noteById($("up-note").value);
+  if (!n) { $("up-title").value = ""; $("up-desc").value = ""; return; }
+  const tag = s => "#" + s.replace(/[^\p{L}\p{N}]/gu, "");
+  $("up-title").value = `${n.product} 진짜 좋을까? 직접 써봤어요 #shorts`.slice(0, 100);
+  const lines = [`📦 ${n.product}`];
+  if (n.price) lines.push(`💰 가격: ${n.price}`);
+  if (n.link) lines.push(`🛒 구매 링크: ${n.link}`);
+  if ($("up-celeb").checked && n.celeb) lines.push(`⭐ ${n.celeb} 추천템으로 알려진 제품이에요. (본 영상은 ${n.celeb}${josa(n.celeb)} 관련이 없어요)`);
+  lines.push("", "제가 직접 사서 써 보고 만든 영상이에요 🙂");
+  // 판매 링크로 수수료를 받으면 알려야 해요 (공정거래위원회 추천·보증 심사지침)
+  if (n.link) lines.push("", n.link.includes("coupang")
+    ? "이 게시물은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+    : "이 영상에는 판매 수수료를 받는 링크가 포함되어 있어요.");
+  lines.push("", [tag(n.product), "#추천템", "#꿀템", "#쇼핑", "#shorts"].join(" "));
+  $("up-desc").value = lines.join("\n");
+}
+$("up-note").onchange = makeUploadText;
+$("up-celeb").onchange = makeUploadText;
+document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+  try { await navigator.clipboard.writeText($(b.dataset.copy).value); }
+  catch (e) { $(b.dataset.copy).select(); document.execCommand("copy"); }
+  b.textContent = "✅"; setTimeout(() => b.textContent = "복사", 1200);
+});
+const checks = [...document.querySelectorAll("#up-check input")];
+checks.forEach(c => c.onchange = () => $("up-open").disabled = !checks.every(x => x.checked));
+$("up-open").onclick = () => window.open("https://studio.youtube.com", "_blank");
+
+// ══ 탭 전환 + 시작 ═════════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== "tab-" + name);
+  if (name === "make") drawPreview();
+  store.set("sf-tab", name);
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+renderNotes(); fillNoteSelects();
+showTab(store.get("sf-tab", "hot"));
+if (SERVER_MODE) fetch("/api/left").then(r => r.json()).then(d => showLeft(d.left)).catch(() => {});
+else showLeft(searchesLeft(loadCache()));
+
+// 비밀번호 잠금 — 비밀번호 자체가 아니라 "해시"(되돌릴 수 없게 뒤섞은 글자)만 넣어 둠
+// ⚠️ 공개 사이트라 완벽한 보안은 아님(도어락 수준). 키는 사이트에 없으니 들어와도 키는 못 씀
+const PIN_HASH = "6e7392142b70a0cf66ff38591eb689841f91ec83c49fef3970d46d512bd46a0a";   // "shorts-finder:" + 비밀번호
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function lockScreen(then) {
+  let unlocked = false;
+  try { unlocked = sessionStorage.getItem("sf-unlocked") === "1"; } catch (e) {}   // 탭을 닫으면 다시 잠김
+  if (unlocked) return then();
+  document.body.classList.add("locked");
+  $("pin").focus();
+  $("pin").oninput = async () => {
+    $("pin").value = $("pin").value.replace(/\D/g, "");
+    if ($("pin").value.length < 4) return;
+    if (await sha256("shorts-finder:" + $("pin").value) === PIN_HASH) {
+      try { sessionStorage.setItem("sf-unlocked", "1"); } catch (e) {}
+      document.body.classList.remove("locked");
+      then();
+    } else {
+      $("pinMsg").textContent = "비밀번호가 달라요";
+      $("pin").value = "";
+      $("lock").querySelector(".box").classList.remove("shake");
+      void $("lock").offsetWidth;   // 흔들기 애니메이션 다시 시작
+      $("lock").querySelector(".box").classList.add("shake");
+    }
+  };
+}
+
+// 키 입력 창 (파일 하나 모드는 키가 이미 들어 있어서 필요 없음)
+if (!KEY && !SERVER_MODE) lockScreen(() => {
+  $("keyBtn").hidden = false;
+  $("keyBtn").onclick = () => { $("keyInput").value = apiKey; $("keyDlg").showModal(); };
+  $("keyCancel").onclick = () => $("keyDlg").close();
+  $("keyForm").onsubmit = e => {
+    const k = $("keyInput").value.trim();
+    if (!/^AIza[\w-]{30,}$/.test(k)) { e.preventDefault(); $("keyMsg").textContent = "AIza로 시작하는 키를 그대로 붙여넣어 주세요."; $("keyMsg").className = "status err"; return; }
+    apiKey = k; store.set("sf-key", k);
+  };
+  if (!apiKey) $("keyDlg").showModal();
+});
+</script>
+</body>
+</html>
